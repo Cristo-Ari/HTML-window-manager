@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Improved Window System</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+        }
+        .window {
+            position: absolute;
+            width: 300px;
+            height: 200px;
+            border: 2px solid #444;
+            border-radius: 5px;
+            background-color: white;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            user-select: none; /* Блокировка выделения по умолчанию */
+        }
+        .title-bar {
+            height: 30px;
+            background-color: #444;
+            color: white;
+            cursor: grab;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 10px;
+            box-sizing: border-box;
+        }
+        .title-bar .close-btn {
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .content {
+            padding: 10px;
+            overflow: auto; /* Для прокрутки, если контент превышает размер окна */
+            height: calc(100% - 30px); /* Высота без учета заголовка */
+            user-select: text; /* Включаем выделение внутри окна */
+        }
+    </style>
+</head>
+<body>
+
+<button onclick="createWindow()">Create New Window</button>
+
+<script>
+    let zIndex = 1; // Track z-index for windows
+    let activeWindow = null; // Track the currently active window
+
+    function createWindow() {
+        const win = document.createElement('div');
+        win.className = 'window';
+        win.style.top = `${100 + Math.random() * 200}px`;
+        win.style.left = `${100 + Math.random() * 200}px`;
+        win.style.zIndex = zIndex++;
+
+        // Add event listener to bring window to front on click
+        win.addEventListener('mousedown', () => {
+            win.style.zIndex = zIndex++;
+            setActiveWindow(win); // Set this window as active when clicked
+        });
+
+        // Create title bar
+        const titleBar = document.createElement('div');
+        titleBar.className = 'title-bar';
+        titleBar.innerHTML = `
+            <span>Window</span>
+            <span class="close-btn" onclick="this.parentElement.parentElement.remove()">✖</span>
+        `;
+        win.appendChild(titleBar);
+
+        // Create content area
+        const content = document.createElement('div');
+        content.className = 'content';
+        content.textContent = 'This is a movable window. You can select text only within this area.';
+        win.appendChild(content);
+
+        // Add drag functionality
+        let isDragging = false;
+        let offsetX = 0, offsetY = 0;
+
+        titleBar.addEventListener('mousedown', (e) => {
+            e.preventDefault(); // Prevent text selection outside of the window
+            isDragging = true;
+            offsetX = e.clientX - win.offsetLeft;
+            offsetY = e.clientY - win.offsetTop;
+            win.style.zIndex = zIndex++; // Bring the dragged window to front
+            titleBar.style.cursor = 'grabbing';
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                win.style.top = `${e.clientY - offsetY}px`;
+                win.style.left = `${e.clientX - offsetX}px`;
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            isDragging = false;
+            titleBar.style.cursor = 'grab';
+        });
+
+        // Set active window on click
+        win.addEventListener('mousedown', () => {
+            setActiveWindow(win);
+        });
+
+        document.body.appendChild(win);
+    }
+
+    function setActiveWindow(win) {
+        // Set the active window and disable selection on all windows
+        if (activeWindow) {
+            // Set previously active window's content to user-select: none
+            const activeContent = activeWindow.querySelector('.content');
+            activeContent.style.userSelect = 'none';
+        }
+
+        // Set new active window's content to user-select: text
+        const content = win.querySelector('.content');
+        content.style.userSelect = 'text';
+
+        // Update active window tracker
+        activeWindow = win;
+    }
+
+    // Listen for selection changes
+    document.addEventListener('selectionchange', () => {
+        if (!activeWindow) return;
+
+        const selection = document.getSelection();
+        if (!selection.rangeCount) return;
+
+        const range = selection.getRangeAt(0);
+
+        // Check if selection is inside the active window
+        if (!activeWindow.contains(range.commonAncestorContainer)) {
+            selection.removeAllRanges(); // Clear selection if it's outside the active window
+        }
+    });
+</script>
+
+</body>
+</html>
